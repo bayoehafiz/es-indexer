@@ -1,0 +1,19 @@
+{
+  "name": "es",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "bayuhafiz@jakpat.net",
+  "license": "ISC",
+  "dependencies": {
+    "dedent": "^0.7.0",
+    "elasticsearch": "^15.2.0",
+    "lodash": "^4.17.11",
+    "mariadb": "^2.0.1-beta",
+    "moment": "^2.22.2",
+    "mysql": "^2.16.0"
+  }
+}
