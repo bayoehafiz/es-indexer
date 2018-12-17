@@ -125,10 +125,16 @@ var startIndexing = function(index_name) {
         database: process.env.DB_DATABASE
     });
 
-    if (index_name == 'room') var table = process.env.ROOM_TABLE;
-    else var table = process.env.KEYWORD_TABLE;
+    if (index_name == 'room') {
+        var table = process.env.ROOM_TABLE;
+        var where = ' WHERE deleted_at IS NULL';
+    }
+    else {
+        var table = process.env.KEYWORD_TABLE;
+        var where = ' WHERE 1';
+    }
 
-    var countQuery = "SELECT count(*) as total FROM " + table;
+    var countQuery = "SELECT count(*) as total FROM " + table + where;
     var chunkSize = process.env.CHUNK_SIZE;
 
     pool.getConnection(function(err, connection) {
@@ -151,7 +157,7 @@ var startIndexing = function(index_name) {
                 var periods = Math.ceil(totalRows / chunkSize)
                 console.log("Total chunks:", periods);
 
-                var selectQuery = "SELECT * FROM " + table + " ORDER BY id DESC LIMIT ";
+                var selectQuery = "SELECT * FROM " + table + where + " ORDER BY id DESC LIMIT ";
                 var counter = 1;
 
                 for (var i = 0; i < periods; i++) {
