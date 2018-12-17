@@ -2,8 +2,8 @@ var elasticsearch = require('elasticsearch');
 var mysql = require('mysql');
 
 var client = new elasticsearch.Client({
-    host: 'localhost:9200',
-    // log: 'trace', // <- verbose method
+    host: 'http://localhost:9200',
+    // log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
 });
 
 var createIndex = function(name) {
@@ -125,11 +125,11 @@ var startIndexing = function(index_name) {
         database: process.env.DB_DATABASE
     });
 
-    if (index_name == 'room') var table = "designer";
-    else var table = "input_keyword_suggestion";
+    if (index_name == 'room') var table = process.env.ROOM_TABLE;
+    else var table = process.env.KEYWORD_TABLE;
 
     var countQuery = "SELECT count(*) as total FROM " + table;
-    var chunkSize = 100;
+    var chunkSize = process.env.CHUNK_SIZE;
 
     pool.getConnection(function(err, connection) {
         if (err) {
