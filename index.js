@@ -1,5 +1,6 @@
 var elasticsearch = require('elasticsearch');
 var mysql = require('mysql');
+var config = require('dotenv').config();
 
 var client = new elasticsearch.Client({
     host: 'localhost:9200',
@@ -118,10 +119,10 @@ var dataRoomFormat = function(res) {
 
 var startIndexing = function(index_name) {
     var pool = mysql.createPool({
-        host: '127.0.0.1',
-        user: 'bayu',
-        password: 'bayu123',
-        database: 'mamikos'
+        host: config.DB_HOST,
+        user: config.DB_USER,
+        password: config.DB_PASS,
+        database: config.DB_DATABASE
     });
 
     if (index_name == 'room') var table = "designer";
