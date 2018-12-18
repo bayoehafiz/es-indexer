@@ -3,7 +3,7 @@ var mysql = require('mysql');
 
 var client = new elasticsearch.Client({
     host: 'http://localhost:9200',
-    // log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
+    log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
 });
 
 var createIndex = function(name) {
@@ -30,6 +30,30 @@ var dataKeywordFormat = function(res) {
             "longitude": (res.longitude == null) ? '' : res.longitude,
             "administrative_type": (res.administrative_type == null) ? '' : res.administrative_type,
             "place_id": (res.place_id == null) ? '' : res.place_id
+        }
+    }
+}
+
+var dataTagFormat = function(res) {
+    return data = {
+        "index": "tag",
+        "type": "_doc",
+        "id": res.id,
+        "body": {
+            "tags": res.tags,
+            "slug": res.slug,
+            "keyword": res.keyword,
+            "latitude_1": res.latitude_1,
+            "longitude_1": res.longitude_1,
+            "latitude_2": res.latitude_2,
+            "longitude_2": res.longitude_2,
+            "type": res.type,
+            "area_city": res.area_city,
+            "area_subdistrict": res.area_subdistrict,
+            "price_min": res.price_min,
+            "price_max": res.price_max,
+            "gender": res.gender,
+            "rent_type": res.rent_type
         }
     }
 }
@@ -126,11 +150,13 @@ var startIndexing = function(index_name) {
     });
 
     if (index_name == 'room') {
-        var table = process.env.ROOM_TABLE;
-        var where = ' WHERE deleted_at IS NULL';
-    }
-    else {
-        var table = process.env.KEYWORD_TABLE;
+        var table = process.env.ROOM_TABLE + ' a';
+        var where = ' WHERE a.deleted_at IS NULL';
+    } else if (index_name == 'tag') {
+        var table = process.env.LANDING_TABLE + ' a';
+        var where = ' LEFT JOIN landing b ON b.id = a.landing_id LEFT JOIN tagging c ON c.id = a.tagging_id WHERE a.deleted_at IS NULL';
+    } else {
+        var table = process.env.KEYWORD_TABLE + ' a';
         var where = ' WHERE 1';
     }
 
@@ -157,7 +183,7 @@ var startIndexing = function(index_name) {
                 var periods = Math.ceil(totalRows / chunkSize)
                 console.log("Total chunks:", periods);
 
-                var selectQuery = "SELECT * FROM " + table + where + " ORDER BY id DESC LIMIT ";
+                var selectQuery = "SELECT * FROM " + table + where + " ORDER BY a.id DESC LIMIT ";
                 var counter = 1;
 
                 for (var i = 0; i < periods; i++) {
@@ -170,10 +196,10 @@ var startIndexing = function(index_name) {
                             return;
                         }
 
-                        var stopped = false;
-                        for (var j = 0; j < results.length; j++) {
-                            if (!stopped) {
-                                if (index_name == 'room') {
+                        if (index_name == 'room') {
+                            var stopped = false;
+                            for (var j = 0; j < results.lengthngth; j++) {
+                                if (!stopped) {
                                     client.index(dataRoomFormat(results[j]), function(err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
@@ -182,7 +208,50 @@ var startIndexing = function(index_name) {
                                             console.log('Indexing status: OK');
                                         }
                                     });
-                                } else {
+                                }
+                            }
+
+                        } else if (index_name == 'tag') {
+                            var finalResult;
+                            var tempData = []; // <- for landing_id grouping
+                            for (var j = 0; j < results.length; j++) {
+                                var $id = results[j].landing_id;
+
+                                // group by 'landing_id'
+                                if (tempData[$id] == undefined) {
+                                    tempData[$id] = results[j];
+                                }
+
+                                // compile taggings
+                                if (tempData[$id].tags == undefined) {
+                                    tempData[$id].tags = [];
+                                }
+
+                                tempData[$id].tags.push(results[j].name);
+                            }
+
+                            // start indexing
+                            var stopped = false;
+                            tempData.forEach(function(dt) {
+                                if (!stopped) {
+                                    client.index(dataTagFormat(dt), function(err, resp, status) {
+                                        if (err) {
+                                            console.log('Indexing error:', status, err);
+                                            stopped = true;
+                                        } else {
+                                            console.log('Indexing status: OK');
+                                        }
+                                    });
+                                }
+                            })
+                            // for (var k = 0; k < tempData.length; k++) {
+
+                            // }
+
+                        } else { // << index_name == 'keyword'
+                            var stopped = false;
+                            for (var j = 0; j < results.length; j++) {
+                                if (!stopped) {
                                     client.index(dataKeywordFormat(results[j]), function(err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
@@ -209,15 +278,15 @@ var startIndexing = function(index_name) {
 }
 
 // Main executions
-console.log("Type 'keyword' or 'room' to start indexing.");
+console.log("Type 'keyword', 'room' or 'tag' to start indexing.");
 var stdin = process.openStdin();
 stdin.addListener("data", function(d) {
     var type = d.toString().trim();
-    if (type == 'keyword' || type == 'room') {
+    if (type == 'keyword' || type == 'room' || type == 'tag') {
         console.log("Begin indexing: " + type + "...");
         // createIndex('test');
         startIndexing(type);
     } else {
-        console.log("Type 'keyword' or 'room' to start indexing.");
+        console.log("Type 'keyword', 'room' or 'tag' to start indexing.");
     }
 });
