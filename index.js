@@ -22,14 +22,10 @@ var dataKeywordFormat = function(res) {
     return data = {
         "index": "keyword",
         "type": "_doc",
-        "id": res.id,
+        "id": res.input_id,
         "body": {
-            "keyword": res.suggestion,
-            "area": res.area,
-            "latitude": (res.latitude == null) ? '' : res.latitude,
-            "longitude": (res.longitude == null) ? '' : res.longitude,
-            "administrative_type": (res.administrative_type == null) ? '' : res.administrative_type,
-            "place_id": (res.place_id == null) ? '' : res.place_id
+            "keyword": res.keyword,
+            "suggestions": res.suggestions
         }
     }
 }
@@ -59,26 +55,6 @@ var dataTagFormat = function(res) {
 }
 
 var dataRoomFormat = function(res) {
-    // compile tags
-    var tags = [];
-    var source = (res.tags !== undefined) ? res.tags : [];
-    if (source.length > 0) {
-        source.forEach(function(t) {
-            tags.push(t.id);
-        })
-    }
-
-    // compile apartment_projects
-    var apartmentProject = null;
-    if (res.apartment_project !== undefined) {
-        var apartmentProject = {
-            "name": res.apartment_project.name,
-            "project_code": res.apartment_project.project_code,
-            "slug": res.apartment_project.slug,
-            "address": res.apartment_project.address
-        };
-    }
-
     // Manipulate 'completion' fields value
     var name = (res.name == null) ? '' : res.name;
     var address = (res.address == null) ? '' : res.address;
@@ -133,9 +109,7 @@ var dataRoomFormat = function(res) {
             "promotion": (res.promotion) ? true : false,
             "kost_updated_date": res.kost_updated_date,
             "created_at": res.created_at,
-            "updated_at": res.updated_at,
-            // "tags": tags,
-            // "apartment_project": res.apartment_project
+            "updated_at": res.updated_at
         }
     }
 }
@@ -151,13 +125,16 @@ var startIndexing = function(index_name) {
 
     if (index_name == 'room') {
         var table = process.env.ROOM_TABLE + ' a';
+        var select = "SELECT * FROM ";
         var where = ' WHERE a.deleted_at IS NULL';
     } else if (index_name == 'tag') {
         var table = process.env.LANDING_TABLE + ' a';
+        var select = "SELECT * FROM ";
         var where = ' LEFT JOIN landing b ON b.id = a.landing_id LEFT JOIN tagging c ON c.id = a.tagging_id WHERE a.deleted_at IS NULL';
-    } else {
+    } else { // <- keyword
         var table = process.env.KEYWORD_TABLE + ' a';
-        var where = ' WHERE 1';
+        var select = "SELECT a.input_id, b.keyword, a.suggestion, a.area, a.latitude, a.longitude FROM ";
+        var where = ' LEFT JOIN input_keyword b on b.id = a.input_id WHERE b.deleted_at IS NULL';
     }
 
     var countQuery = "SELECT count(*) as total FROM " + table + where;
@@ -183,7 +160,7 @@ var startIndexing = function(index_name) {
                 var periods = Math.ceil(totalRows / chunkSize)
                 console.log("Total chunks:", periods);
 
-                var selectQuery = "SELECT * FROM " + table + where + " ORDER BY a.id DESC LIMIT ";
+                var selectQuery = select + table + where + " ORDER BY a.id DESC LIMIT ";
                 var counter = 1;
 
                 for (var i = 0; i < periods; i++) {
@@ -212,7 +189,6 @@ var startIndexing = function(index_name) {
                             }
 
                         } else if (index_name == 'tag') {
-                            var finalResult;
                             var tempData = []; // <- for landing_id grouping
                             for (var j = 0; j < results.length; j++) {
                                 var $id = results[j].landing_id;
@@ -243,16 +219,37 @@ var startIndexing = function(index_name) {
                                         }
                                     });
                                 }
-                            })
-                            // for (var k = 0; k < tempData.length; k++) {
-
-                            // }
+                            });
 
                         } else { // << index_name == 'keyword'
-                            var stopped = false;
+                            var tempData = []; // <- for input_id grouping
                             for (var j = 0; j < results.length; j++) {
+                                var $id = results[j].input_id;
+
+                                // group by 'input_id'
+                                if (tempData[$id] == undefined) {
+                                    tempData[$id] = results[j];
+                                }
+
+                                // compile suggestions
+                                if (tempData[$id].suggestions == undefined) {
+                                    tempData[$id].suggestions = [];
+                                }
+
+                                tempData[$id].suggestions.push({
+                                    'suggestion': results[j].suggestion,
+                                    'area': results[j].area,
+                                    'latitude': results[j].latitude,
+                                    'longitude': results[j].longitude
+                                });
+                            }
+
+                            // start indexing
+                            var stopped = false;
+                            tempData.forEach(function(dt) {
+                                // console.log(dataKeywordFormat(dt));
                                 if (!stopped) {
-                                    client.index(dataKeywordFormat(results[j]), function(err, resp, status) {
+                                    client.index(dataKeywordFormat(dt), function(err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
                                             stopped = true;
@@ -261,7 +258,7 @@ var startIndexing = function(index_name) {
                                         }
                                     });
                                 }
-                            }
+                            });
                         }
                     });
 
