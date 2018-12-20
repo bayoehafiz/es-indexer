@@ -7,18 +7,6 @@ var client = new elasticsearch.Client({
     log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
 });
 
-var createIndex = function(name) {
-    client.indices.create({
-        index: name
-    }, function(err, resp, status) {
-        if (err) {
-            console.log(err);
-        } else {
-            console.log("create", resp);
-        }
-    });
-}
-
 var dataKeywordFormat = function(res) {
     return data = {
         "index": "keyword",
@@ -178,6 +166,7 @@ var startIndexing = function(index_name) {
                 console.log("Total chunks:", periods);
 
                 var selectQuery = select + table + where + " ORDER BY a.id DESC LIMIT ";
+
                 var counter = 1;
 
                 for (var i = 0; i < periods; i++) {
@@ -192,14 +181,14 @@ var startIndexing = function(index_name) {
 
                         if (index_name == 'room') {
                             var stopped = false;
-                            for (var j = 0; j < results.lengthngth; j++) {
+                            for (var j = 0; j < results.length; j++) {
                                 if (!stopped) {
                                     client.index(dataRoomFormat(results[j]), function(err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
                                             stopped = true;
                                         } else {
-                                            console.log('Indexing status: OK');
+                                            console.log('Indexing ' + j + ': OK');
                                         }
                                     });
                                 }
