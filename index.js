@@ -87,17 +87,19 @@ var dataRoomFormat = function(res) {
     var area_big = (res.area_big == null) ? '' : res.area_big;
 
     // Manipulate 'gender' value
+    var gender;
     switch (res.gender) {
-        case '0':
-            var gender = 'campur';
+        case 0:
+            gender = 'campur';
             break;
-        case '1':
-            var gender = 'putri';
+        case 1:
+            gender = 'putri';
             break;
-        case '2':
-            var gender = 'putra';
+        case 2:
+            gender = 'putra';
             break;
         default:
+            gender = '';
             break;
     }
 
