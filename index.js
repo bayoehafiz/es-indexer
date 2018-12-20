@@ -1,8 +1,9 @@
 var elasticsearch = require('elasticsearch');
 var mysql = require('mysql');
+require('dotenv').config();
 
 var client = new elasticsearch.Client({
-    host: 'http://localhost:9200',
+    host: process.env.ES_HOST,
     log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
 });
 
@@ -31,6 +32,41 @@ var dataKeywordFormat = function(res) {
 }
 
 var dataTagFormat = function(res) {
+    object_size = function(obj) {
+        var size = 0,
+            key;
+        for (key in obj) {
+            if (obj.hasOwnProperty(key)) size++;
+        }
+        return size;
+    };
+
+    // Manipulate gender
+    var genderData = JSON.parse(res.gender);
+    var gender = []
+
+    if (genderData != null) {
+        if (object_size(genderData) > 2) {
+            gender = ['campur', 'putri', 'putra'];
+        } else {
+            genderData.forEach(function(val) {
+                switch (gender) {
+                    case '0':
+                        gender.push('campur');
+                        break;
+                    case '1':
+                        gender.push('putri');
+                        break;
+                    case '2':
+                        gender.push('putra');
+                        break;
+                    default:
+                        break;
+                }
+            })
+        }
+    }
+
     return data = {
         "index": "tag",
         "type": "_doc",
@@ -48,7 +84,7 @@ var dataTagFormat = function(res) {
             "area_subdistrict": res.area_subdistrict,
             "price_min": res.price_min,
             "price_max": res.price_max,
-            "gender": res.gender,
+            "gender": gender,
             "rent_type": res.rent_type
         }
     }
@@ -62,13 +98,26 @@ var dataRoomFormat = function(res) {
     var area_subdistrict = (res.area_subdistrict == null) ? '' : res.area_subdistrict;
     var area_big = (res.area_big == null) ? '' : res.area_big;
 
+    // Manipulate 'gender' value
+    switch (res.gender) {
+        case '0':
+            var gender = 'campur';
+            break;
+        case '1':
+            var gender = 'putri';
+            break;
+        case '2':
+            var gender = 'putra';
+            break;
+        default:
+            break;
+    }
+
     return data = {
         "index": "room",
         "type": "_doc",
         "id": res.id,
         "body": {
-            "code": res.code,
-            "song_id": res.song_id,
             "name": name,
             "address": address,
             "area_subdistrict": area_subdistrict,
@@ -77,45 +126,13 @@ var dataRoomFormat = function(res) {
             "location_id": res.location_id,
             "latitude": res.latitude,
             "longitude": res.longitude,
-            "gender": res.gender,
-            "status": res.status,
-            "room_available": res.room_available,
-            "room_count": res.room_count,
-            "is_promoted": (res.is_promoted) ? true : false,
-            "slug": res.slug,
-            "is_booking": (res.is_booking == 1) ? true : false,
-            "price_daily": (res.price_daily != null) ? res.price_daily : 0,
-            "price_weekly": (res.price_weekly != null) ? res.price_weekly : 0,
-            "price_monthly": (res.price_monthly != null) ? res.price_monthly : 0,
-            "price_yearly": (res.price_yearly != null) ? res.price_yearly : 0,
-            "price_remark": res.price_remark,
-            "fac_room_other": res.fac_bath_other,
-            "fac_bath_other": res.fac_bath_other,
-            "fac_share_other": res.fac_share_other,
-            "fac_near_other": res.fac_near_other,
-            "description": res.description,
-            "size": res.size,
-            "is_verified_address": (res.is_verified_address == 1) ? true : false,
-            "is_verified_phone": (res.is_verified_phone == 1) ? true : false,
-            "is_verified_kost": (res.is_verified_kost == 1) ? true : false,
-            "is_visited_kost": (res.is_verified_kost == 1) ? true : false,
-            "floor": res.floor,
-            "furnished": (res.furnished == 1) ? true : false,
-            "view_count": res.view_count,
-            "unit_type": res.unit_type,
-            "photo_count": res.photo_count,
-            "unit_number": res.unit_number,
-            "youtube_id": res.youtube_id,
-            "promotion": (res.promotion) ? true : false,
-            "kost_updated_date": res.kost_updated_date,
-            "created_at": res.created_at,
-            "updated_at": res.updated_at
+            "gender": gender,
+            "slug": res.slug
         }
     }
 }
 
 var startIndexing = function(index_name) {
-    require('dotenv').config();
     var pool = mysql.createPool({
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
