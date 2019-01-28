@@ -7,7 +7,7 @@ var client = new elasticsearch.Client({
     log: 'trace', // <- verbose method (DEVELOPMENT ONLY!)
 });
 
-var dataKeywordFormat = function(res) {
+var dataKeywordFormat = function (res) {
     return data = {
         "index": "keyword",
         "type": "_doc",
@@ -19,8 +19,8 @@ var dataKeywordFormat = function(res) {
     }
 }
 
-var dataTagFormat = function(res) {
-    object_size = function(obj) {
+var dataTagFormat = function (res) {
+    object_size = function (obj) {
         var size = 0,
             key;
         for (key in obj) {
@@ -37,7 +37,7 @@ var dataTagFormat = function(res) {
         if (object_size(genderData) > 2) {
             gender = ['campur', 'putri', 'putra'];
         } else {
-            genderData.forEach(function(val) {
+            genderData.forEach(function (val) {
                 switch (gender) {
                     case '0':
                         gender.push('campur');
@@ -78,7 +78,7 @@ var dataTagFormat = function(res) {
     }
 }
 
-var dataRoomFormat = function(res) {
+var dataRoomFormat = function (res) {
     // Manipulate 'completion' fields value
     var name = (res.name == null) ? '' : res.name;
     var address = (res.address == null) ? '' : res.address;
@@ -114,15 +114,21 @@ var dataRoomFormat = function(res) {
             "area_city": area_city,
             "area_big": area_big,
             "location_id": res.location_id,
-            "latitude": res.latitude,
-            "longitude": res.longitude,
+            // "latitude": res.latitude,
+            // "longitude": res.longitude,
             "gender": gender,
-            "slug": res.slug
+            "slug": res.slug,
+            "pin": {
+                "location": {
+                    "lat": res.latitude,
+                    "lon": res.longitude
+                }
+            }
         }
     }
 }
 
-var startIndexing = function(index_name) {
+var startIndexing = function (index_name) {
     var pool = mysql.createPool({
         host: process.env.DB_HOST,
         user: process.env.DB_USER,
@@ -147,14 +153,14 @@ var startIndexing = function(index_name) {
     var countQuery = "SELECT count(*) as total FROM " + table + where;
     var chunkSize = process.env.CHUNK_SIZE;
 
-    pool.getConnection(function(err, connection) {
+    pool.getConnection(function (err, connection) {
         if (err) {
             connection.release();
             console.log("Error on getConnection:", err);
             return;
         }
 
-        connection.query(countQuery, {}, function(err, result) {
+        connection.query(countQuery, {}, function (err, result) {
             if (err) {
                 connection.release();
                 console.log("Error on getConnection:", err);
@@ -175,7 +181,7 @@ var startIndexing = function(index_name) {
                     var offset = i * chunkSize;
                     var runQuery = selectQuery + offset + "," + chunkSize;
 
-                    connection.query(runQuery, {}, function(err, results) {
+                    connection.query(runQuery, {}, function (err, results) {
                         if (err) {
                             console.log("Error on runQuery:", err);
                             return;
@@ -185,7 +191,7 @@ var startIndexing = function(index_name) {
                             var stopped = false;
                             for (var j = 0; j < results.length; j++) {
                                 if (!stopped) {
-                                    client.index(dataRoomFormat(results[j]), function(err, resp, status) {
+                                    client.index(dataRoomFormat(results[j]), function (err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
                                             stopped = true;
@@ -216,9 +222,9 @@ var startIndexing = function(index_name) {
 
                             // start indexing
                             var stopped = false;
-                            tempData.forEach(function(dt) {
+                            tempData.forEach(function (dt) {
                                 if (!stopped) {
-                                    client.index(dataTagFormat(dt), function(err, resp, status) {
+                                    client.index(dataTagFormat(dt), function (err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
                                             stopped = true;
@@ -254,10 +260,10 @@ var startIndexing = function(index_name) {
 
                             // start indexing
                             var stopped = false;
-                            tempData.forEach(function(dt) {
+                            tempData.forEach(function (dt) {
                                 // console.log(dataKeywordFormat(dt));
                                 if (!stopped) {
-                                    client.index(dataKeywordFormat(dt), function(err, resp, status) {
+                                    client.index(dataKeywordFormat(dt), function (err, resp, status) {
                                         if (err) {
                                             console.log('Indexing error:', status, err);
                                             stopped = true;
@@ -285,7 +291,7 @@ var startIndexing = function(index_name) {
 // Main executions
 console.log("Type 'keyword', 'room' or 'tag' to start indexing.");
 var stdin = process.openStdin();
-stdin.addListener("data", function(d) {
+stdin.addListener("data", function (d) {
     var type = d.toString().trim();
     if (type == 'keyword' || type == 'room' || type == 'tag') {
         console.log("Begin indexing: " + type + "...");
