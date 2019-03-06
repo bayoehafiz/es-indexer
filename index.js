@@ -147,7 +147,7 @@ var startIndexing = function (index_name) {
     } else { // <- keyword
         var table = process.env.KEYWORD_TABLE + ' a';
         var select = "SELECT a.input_id, b.keyword, a.suggestion, a.area, a.latitude, a.longitude FROM ";
-        var where = ' LEFT JOIN input_keyword b on b.id = a.input_id WHERE b.deleted_at IS NULL';
+        var where = ' LEFT JOIN search_input_keyword b on b.id = a.input_id WHERE b.deleted_at IS NULL';
     }
 
     var countQuery = "SELECT count(*) as total FROM " + table + where;
