@@ -1,12 +1,12 @@
 {
-  "name": "es",
+  "name": "es-indexer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Elasticsearch indexer for MamiSearch App",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "bayuhafiz@jakpat.net",
+  "author": "bayuhafiz@mamikos.com",
   "license": "ISC",
   "dependencies": {
     "dedent": "^0.7.0",
